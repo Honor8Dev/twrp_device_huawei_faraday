@@ -47,5 +47,6 @@ TW_THEME := portrait_hdpi
 BOARD_SUPPRESS_SECURE_ERASE := true
 RECOVERY_SDCARD_ON_DATA := true
 BOARD_HAS_NO_REAL_SDCARD := true
+TWHAVE_SELINUX := true
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd_backlight0/brightness"
-TW_CUSTOM_BATTERY_PATH := "/sys/class/power_supply/Battery/capacity"
+TW_CUSTOM_BATTERY_PATH := "/sys/class/power_supply/Battery"

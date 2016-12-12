@@ -1,16 +1,189 @@
+import /init.chip.usb.rc
+on early-init
+    write /sys/fs/selinux/checkreqprot 0
+
+    setcon u:r:init:s0
+
+    start ueventd
+    start healthd
+
+on init
+
+
+    symlink /system/vendor /vendor
+
+    mkdir /usb
+
+    mkdir /cust
+    mkdir /splash2
+    mkdir /3rdmodem
+    mkdir /3rdmodemnvm
+    mkdir /3rdmodemnvmbkp
+    mkdir /newsys
+    chown system system /dev/cpuctl
+    chown system system /dev/cpuctl/tasks
+
+    write /sys/module/hisi_nve/parameters/nve /dev/block/bootdevice/by-name/nvme
+    mount /tmp /tmp tmpfs
+    wait /dev/nve0
+    chmod 0640 /dev/nve0
+    write /proc/sys/vm/max_map_count 1000000
+
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
+    write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor ondemand
+    write /sys/kernel/hmp/up_threshold 1024
+    write /sys/kernel/hmp/down_threshold 768
+
 on fs
 
-    start teecd
-    start volisnotd
+    wait /dev/block/bootdevice/by-name/oeminfo
+    start oeminfo_nvm
+    wait /dev/block/bootdevice/by-name/system
+    wait /dev/block/bootdevice/by-name/vendor
+    mount ext4 /dev/block/bootdevice/by-name/splash2 /splash2 wait rw nosuid nodev context=u:object_r:splash2_data_file:s0
+    restorecon /splash2
+    chmod 775 /splash2
+    chown root system /splash2
+    modem_fs_chk 1024
 
-service teecd /sbin/teecd
-    disabled
-    user root
-    group root
-    seclabel u:r:tee:s0
+    trigger firmware_mounts_complete
 
-service volisnotd /sbin/volisnotd -m
-    disabled
-    user root
-    group root
-    seclabel u:r:tee:s0
+on property:vold.decrypt=trigger_shutdown_framework
+    class_reset server
+
+on property:vold.decrypt=trigger_load_persist_props
+    load_persist_props
+
+on property:vold.decrypt=trigger_post_fs_data
+    trigger post-fs-data
+
+on post-fs-data
+    trigger post-fs-data_hw
+
+on post-fs-data_hw
+    mkdir /data/hwzd_logs/3rdcp-log 0775 radio radio
+    mkdir /data/nvram/md_via 0770 root radio
+
+    chmod 0660 /dev/vmodem
+    chown radio radio /dev/vmodem
+
+    mkdir /data/pppd_via 0770 radio system
+
+	mkdir /storage
+	symlink /data/media/0 /storage/sdcard0
+	symlink /sdcard /storage/sdcard1
+    setprop vold.post_fs_data_done 1
+    chown root system /dev/ttyAMA3
+    chmod 0664 /dev/ttyAMA3
+    chown root system /proc/gps/nstandby
+    chmod 0664 /proc/gps/nstandby
+
+on cust_parse_action
+    cust_parse
+
+on firmware_mounts_complete
+   rm /dev/.booting
+
+on property:androidboot.start_services=true
+    wait /dev/block/bootdevice/by-name/system
+    mount ext4 /dev/block/bootdevice/by-name/system /newsys wait ro
+    mount ext4 /dev/block/bootdevice/by-name/product /product wait ro
+    mount ext4 /dev/block/bootdevice/by-name/vendor /vendor wait ro
+    mount ext4 /dev/block/bootdevice/by-name/cache /cache
+    wait /dev/block/bootdevice/by-name/userdata
+    mount f2fs /dev/block/bootdevice/by-name/userdata /data nosuid nodev noatime discard,inline_data,inline_xattr
+    mount ext4 /dev/block/bootdevice/by-name/userdata /data nosuid nodev noatime wait crypt discard,noauto_da_alloc,mblk_io_submit,data=ordered
+    wait /dev/block/bootdevice/by-name/cust
+    mount ext4 /dev/block/bootdevice/by-name/cust /cust wait ro
+    write /sys/class/android_usb/android0/iManufacturer ${ro.product.manufacturer}
+    write /sys/class/android_usb/android0/iProduct ${ro.product.model}
+    mount ext4 /dev/block/bootdevice/by-name/dsp /dsp:0
+    mount ext4 /dev/block/bootdevice/by-name/splash2 /splash2 wait rw nosuid nodev context=u:object_r:splash2_data_file:s0
+    restorecon /splash2
+    chmod 775 /splash2
+    chown root system /splash2
+    mount ext4 /dev/block/bootdevice/by-name/3rdmodem /3rdmodem wait ro nosuid nodev
+    mount ext4 /dev/block/bootdevice/by-name/3rdmodemnvm /3rdmodemnvm noatime nosuid nodev
+    mount ext4 /dev/block/bootdevice/by-name/3rdmodemnvmbkp /3rdmodemnvmbkp noatime nosuid nodev
+    trigger post-fs_hw
+    trigger post-fs-data_hw
+
+
+    trigger early-boot_hw
+    trigger boot
+    setprop recovery.load_finish true
+
+on property:recovery.start_all_srv=true
+    trigger cust_parse_action
+    trigger load_system_props_action
+    setprop sys.system.serv run
+    start logd
+    start atcmdserver
+    start hw_ueventd
+    start statusd
+    start gpsd_47531
+    start limit_current
+
+on property:vold.decrypt=trigger_shutdown_framework
+    class_reset server
+
+on property:vold.decrypt=trigger_load_persist_props
+    load_persist_props
+
+on property:vold.decrypt=trigger_post_fs_data
+    trigger post-fs-data
+
+    service teecd /sbin/teecd
+        disabled
+        user root
+        group root
+        seclabel u:r:tee:s0
+
+    on property:ro.board.platform=hi3635
+        start teecd
+
+    on property:ro.board.platform=hi3650
+        start teecd
+
+        on property:sys.usb.config=none && property:sys.usb.configfs=0
+            stop adbd
+            write /sys/class/android_usb/android0/enable 0
+            write /sys/class/android_usb/android0/bDeviceClass 0
+            write /sys/devices/virtual/android_usb/android0/port_mode 1
+            setprop sys.usb.state ${sys.usb.config}
+
+        on property:sys.usb.config=manufacture,adb && property:sys.usb.configfs=0
+            write /sys/class/android_usb/android0/enable 0
+            write /sys/class/android_usb/android0/idVendor 12d1
+            write /sys/class/android_usb/android0/idProduct 107e
+            write /sys/class/android_usb/android0/iSerial ${ro.serialno}
+            write /sys/class/android_usb/f_mass_storage/luns sdcard
+            write /sys/class/android_usb/f_mass_storage/lun/file none
+            write /sys/class/android_usb/android0/f_hw_acm/hw_instances 3
+            write /sys/class/android_usb/android0/functions hw_acm,mass_storage,adb,hdb
+            write /sys/devices/virtual/android_usb/android0/port_mode 14
+            write /sys/class/android_usb/android0/enable 1
+            start adbd
+            setprop sys.usb.state ${sys.usb.config}
+
+        on property:sys.usb.config=mass_storage && property:sys.usb.configfs=0
+            write /sys/class/android_usb/android0/enable 0
+            write /sys/class/android_usb/android0/idVendor 12d1
+            write /sys/class/android_usb/android0/idProduct 1037
+            write /sys/class/android_usb/android0/iSerial ${ro.serialno}
+            write /sys/class/android_usb/f_mass_storage/luns sdcard
+            write /sys/class/android_usb/f_mass_storage/lun/file none
+            write /sys/class/android_usb/android0/functions ${sys.usb.config}
+            write /sys/devices/virtual/android_usb/android0/port_mode 7
+            write /sys/class/android_usb/android0/enable 1
+            setprop sys.usb.state ${sys.usb.config}
+
+        service console /system/bin/sh
+            class core
+            console
+            disabled
+            user root
+            group root
+
+        on property:ro.debuggable=1
+            start console
