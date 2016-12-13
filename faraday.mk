@@ -3,11 +3,15 @@ LOCAL_PATH := device/huawei/faraday
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
 
-# Hackery
+# Hackery (Last line removes default TWRP instructions)
 $(shell mkdir -p $(OUT)/obj/ETC/sepolicy.recovery_intermediates)
-$(shell mkdir -p $(OUT)obj/ETC/sepolicy_intermediates) 
+$(shell mkdir -p $(OUT)obj/ETC/sepolicy_intermediates)
 $(shell cp device/huawei/faraday/sepolicy/prebuilt/sepolicy $(OUT)/obj/ETC/sepolicy.recovery_intermediates/sepolicy.recovery)
 $(shell cp device/huawei/faraday/sepolicy/prebuilt/sepolicy $(OUT)/obj/ETC/sepolicy_intermediates/sepolicy)
+$(shell rm $(OUT)/product/faraday/recovery/root/init.recovery.usb.rc)
+
+# Copy Ramdisk and System files
+$(shell cp -a device/huawei/faraday/recovery/root $(OUT)/product/faraday/recovery/root)
 
 # Screen density
 PRODUCT_AAPT_CONFIG := normal
