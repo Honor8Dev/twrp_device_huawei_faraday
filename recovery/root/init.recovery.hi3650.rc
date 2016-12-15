@@ -1,10 +1,9 @@
-import /init.chip.usb.rc
-import /init.usb.configfs.rc
-
 on fs
-
     start teecd
     start volisnotd
+
+on property:vold.decrypt=trigger_post_fs_data
+    trigger post-fs-data
 
 service teecd /sbin/teecd
     disabled
@@ -13,7 +12,7 @@ service teecd /sbin/teecd
     seclabel u:r:tee:s0
 
 service volisnotd /sbin/volisnotd -m
-    disabled
-    user root
-    group root
-    seclabel u:r:tee:s0
+      disabled
+      user root
+      group root
+      seclabel u:r:tee:s0
