@@ -1,12 +1,3 @@
-#
-# ADDITIONAL_DEFAULT_PROPERTIES
-#
-ro.secure=0
-ro.adb.secure=0
-ro.allow.mock.location=1
-ro.debuggable=1
-ro.build.subproduct=F2FS
-ro.zygote=zygote64_32
-persist.sys.usb.config=manufacture,adb
+## MTP Flags ##
 sys.usb.configfs=1
 sys.usb.controller=ff100000.dwc3

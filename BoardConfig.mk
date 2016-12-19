@@ -50,3 +50,5 @@ BOARD_HAS_NO_REAL_SDCARD := true
 TWHAVE_SELINUX := true
 TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd_backlight0/brightness"
 TW_CUSTOM_BATTERY_PATH := "/sys/class/power_supply/Battery"
+TW_INCLUDE_CRYPTO := true
+TWRP_INCLUDE_LOGCAT := true
